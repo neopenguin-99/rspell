@@ -1,4 +1,5 @@
 use unicode_segmentation::UnicodeSegmentation;
+use std::collections::HashMap;
 use std::{cmp::Ordering, io::Read};
 use std::fs::File;
 use clap::{crate_authors, crate_version, value_parser, Arg, ArgMatches, Command};
@@ -20,7 +21,7 @@ fn parse_args() -> Result<Vec<String>, Box<dyn std::error::Error>> {
 
 
 
-fn get_words_from_file(file_path: String) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+fn get_words_from_file(file_path: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut f = File::open(file_path)?;
     let buf = &mut Default::default();
     let _ = f.read_to_string(buf)?;
@@ -52,35 +53,50 @@ fn compute_levenshtein_distance(s: &str, t: &str) -> u32 {
     }
 }
 
-fn check_word_against_dictionary(word: String) -> Result<u32, Box<dyn std::error::Error>> {
-    let dictionary = get_words_from_file("training.txt".to_string())?;
-    let mut min: u32 = u32::MAX;
+enum Spelling {
+    Correct,
+    Incorrect(String, u32)
+}
+
+fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Result<Spelling, Box<dyn std::error::Error>> {
+    let mut min_distance: u32 = u32::MAX;
+    let closest_word: String = Default::default();
     for dict_entry in dictionary {
-
-        let tmp = compute_levenshtein_distance(&word, &dict_entry);
-        if tmp < min {
-            min = tmp
+        let distance = compute_levenshtein_distance(&word, &dict_entry);
+        if distance < min_distance {
+            min_distance = distance
         }
-
     }
-    Ok(min)
+    if min_distance == 0 {
+        return Ok(Spelling::Correct);
+    }
+    else {
+        return Ok(Spelling::Incorrect(closest_word, min_distance));
+    }
 }
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let distance = compute_levenshtein_distance("based", "baser");
-    println!("{:#?}", distance);
     let files = parse_args()?;
-    let mut vals: Vec<u32> = Default::default();
+    let mut word_distance_hashmap = HashMap::new();
+    let dictionary = get_words_from_file("training.txt")?;
     for file in files {
-        let words = get_words_from_file(file)?;
+        let words = get_words_from_file(&file)?;
         for word in words {
-            let tmp = check_word_against_dictionary(word)?;
-            if tmp != 0 {
-                vals.push(tmp);
+            let spelling = check_word_against_dictionary(&word, &dictionary)?;
+            _ = match spelling {
+                Spelling::Correct => { 
+                    continue; 
+                }
+                Spelling::Incorrect(word, ref distance) => {
+                    word_distance_hashmap.insert(word, spelling.word);
+                }
             }
         }
-        
+        println!("For file {}", file.to_string());
+        for word_distance_element in word_distance_hashmap.iter() {
+
+        }
     }
     // let buf: &mut String = &mut Default::default();
     // let s = "a̐éö̲\r\n";
