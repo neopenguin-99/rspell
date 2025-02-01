@@ -1,5 +1,6 @@
 use unicode_segmentation::UnicodeSegmentation;
 use std::collections::HashMap;
+use std::error::Error;
 use std::{cmp::Ordering, io::Read};
 use std::fs::File;
 use clap::{crate_authors, crate_version, value_parser, Arg, ArgMatches, Command};
@@ -14,9 +15,11 @@ fn parse_args() -> Result<Vec<String>, Box<dyn std::error::Error>> {
             .value_parser(value_parser!(String))
         )
         .try_get_matches()?;
-    Ok(args.get_many::<String>("files")
-        .unwrap() // todo replace this
-        .map(|s| s.to_string()).collect())
+    let files_option = args.get_many::<String>("files");
+    return match files_option {
+        Some(files) => Ok(files.map(|s| s.to_string()).collect::<Vec<String>>()),
+        None => panic!("No file name was provided"),
+    };
 }
 
 
@@ -55,7 +58,7 @@ fn compute_levenshtein_distance(s: &str, t: &str) -> u32 {
 
 enum Spelling {
     Correct,
-    Incorrect(String, u32)
+    Incorrect(String, String, u32)
 }
 
 fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Result<Spelling, Box<dyn std::error::Error>> {
@@ -71,35 +74,42 @@ fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Res
         return Ok(Spelling::Correct);
     }
     else {
-        return Ok(Spelling::Incorrect(closest_word, min_distance));
+        return Ok(Spelling::Incorrect(word.to_string(), closest_word, min_distance));
     }
 }
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let files = parse_args()?;
-    let mut word_distance_hashmap = HashMap::new();
-    let dictionary = get_words_from_file("training.txt")?;
+    let dictionary = get_words_from_file("training2.txt")?;
     for file in files {
+        println!("For file {}:", file.to_string());
         let words = get_words_from_file(&file)?;
         for word in words {
+            println!("checking word:{}", word);
             let spelling = check_word_against_dictionary(&word, &dictionary)?;
             _ = match spelling {
                 Spelling::Correct => { 
                     continue; 
                 }
-                Spelling::Incorrect(word, ref distance) => {
-                    word_distance_hashmap.insert(word, spelling.word);
+                Spelling::Incorrect(incorrect_word, closest_word, distance) => {
+                    println!("{incorrect_word} -> {closest_word} ({distance})");
                 }
             }
-        }
-        println!("For file {}", file.to_string());
-        for word_distance_element in word_distance_hashmap.iter() {
-
         }
     }
     // let buf: &mut String = &mut Default::default();
     // let s = "a̐éö̲\r\n";
     // let a = s.split_word_bounds().collect::<Vec<&str>>();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn throws_error_on_parse_args_when_no_args_provided() {
+
+    }
 }
