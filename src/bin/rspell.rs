@@ -4,6 +4,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use std::io::Read;
 use std::fs::File;
 use clap::{crate_authors, crate_version, value_parser, Arg, ArgMatches, Command};
+use rspell::rspell::word_reader::get_words_from_file;
 
 /// Returns a vector of String that are the relative paths of the files passed as arguments.
 fn parse_args() -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -24,14 +25,6 @@ fn parse_args() -> Result<Vec<String>, Box<dyn std::error::Error>> {
 
 
 
-fn get_words_from_file(file_path: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut f = File::open(file_path)?;
-    let buf = &mut Default::default();
-    let _ = f.read_to_string(buf)?;
-    let words_ref = buf.unicode_words().collect::<Vec<&str>>();
-
-    Ok(words_ref.iter().map(|word_ref| word_ref.to_string()).collect())
-}
 
 fn compute_levenshtein_distance(s: &str, t: &str) -> u32 {
     if s.is_empty() { return t.len() as u32; }
@@ -101,19 +94,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::get_words_from_file;
     use assert_fs::prelude::*;
-    use test_case::test_case;
+    use mockall::{automock, mock, predicate::*};
 
     #[test]
-    fn get_words_from_file() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_get_words_from_file() -> Result<(), Box<dyn std::error::Error>> {
+        // Arrange
         const FILE_NAME: &str = "get_words_from_file.txt";
         let temp = assert_fs::TempDir::new()?;
         let input_file = temp.child(FILE_NAME);
         input_file.touch()?;
         input_file.write_str("this statement is false")?;
-        let path = input_file.path().to_str().unwrap();
-        let result = super::get_words_from_file(path)?;
+        let file_path = input_file.path().to_str().unwrap();
+
+        // Act
+        let result = get_words_from_file(file_path)?;
+
+        // Assert
         assert_eq!(result, vec!["this", "statement", "is", "false"]);
+
+        // Teardown
         temp.close().unwrap();
         Ok(())
 
