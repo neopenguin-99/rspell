@@ -1,7 +1,7 @@
+#![feature(custom_test_frameworks)]
+
 use unicode_segmentation::UnicodeSegmentation;
-use std::collections::HashMap;
-use std::error::Error;
-use std::{cmp::Ordering, io::Read};
+use std::io::Read;
 use std::fs::File;
 use clap::{crate_authors, crate_version, value_parser, Arg, ArgMatches, Command};
 
@@ -28,13 +28,9 @@ fn get_words_from_file(file_path: &str) -> Result<Vec<String>, Box<dyn std::erro
     let mut f = File::open(file_path)?;
     let buf = &mut Default::default();
     let _ = f.read_to_string(buf)?;
-    let words_ref = buf.split_word_bounds().collect::<Vec<&str>>();
+    let words_ref = buf.unicode_words().collect::<Vec<&str>>();
 
     Ok(words_ref.iter().map(|word_ref| word_ref.to_string()).collect())
-}
-
-fn perform_spellcheck() {
-
 }
 
 fn compute_levenshtein_distance(s: &str, t: &str) -> u32 {
@@ -65,7 +61,8 @@ fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Res
     let mut min_distance: u32 = u32::MAX;
     let closest_word: String = Default::default();
     for dict_entry in dictionary {
-        let distance = compute_levenshtein_distance(&word, &dict_entry);
+        let distance = compute_levenshtein_distance(&word, &dict_entry); // todo use di so that we
+        // can inject this in for testing
         if distance < min_distance {
             min_distance = distance
         }
@@ -98,18 +95,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    // let buf: &mut String = &mut Default::default();
-    // let s = "a̐éö̲\r\n";
-    // let a = s.split_word_bounds().collect::<Vec<&str>>();
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::prelude::*;
+    use test_case::test_case;
 
     #[test]
-    fn throws_error_on_parse_args_when_no_args_provided() {
+    fn get_words_from_file() -> Result<(), Box<dyn std::error::Error>> {
+        const FILE_NAME: &str = "get_words_from_file.txt";
+        let temp = assert_fs::TempDir::new()?;
+        let input_file = temp.child(FILE_NAME);
+        input_file.touch()?;
+        input_file.write_str("this statement is false")?;
+        let path = input_file.path().to_str().unwrap();
+        let result = super::get_words_from_file(path)?;
+        assert_eq!(result, vec!["this", "statement", "is", "false"]);
+        temp.close().unwrap();
+        Ok(())
 
+    }
+
+    #[test_case("worr", "word", 1; "when distance is 1 from 1 substituted character")]
+    #[test_case("wirr", "word", 2; "when distance is 1 from 2 substituted characters")]
+    #[test_case("wor", "word", 1; "when distance is 1 from 1 deleted character")]
+    #[test_case("worda", "word", 1; "when distance is 1 from 1 added character")]
+    fn compute_levenshtein_distance(incorrect_word: &str, closest_match: &str, expected_distance: u32) -> Result<(), Box<dyn std::error::Error>> {
+        let distance = super::compute_levenshtein_distance(incorrect_word, closest_match);
+        assert_eq!(distance, expected_distance);
+        Ok(())
+    }
+
+    #[test]
+    fn check_word_against_dictionary_returns_correct_spelling_enum_variant() -> Result<(), Box<dyn std::error::Error>> {
+        let distance = super::check_word_against_dictionary(&String::from("word"), &vec![String::from("dictionary"), String::from("with"), String::from("word")])?;
+        assert!(match distance {
+            Spelling::Correct => true,
+            Spelling::Incorrect(_, _, _) => false
+        });
+        Ok(())
+    }
+
+    #[test]
+    fn check_word_against_dictionary_returns_incorrect_spelling_enum_variant() -> Result<(), Box<dyn std::error::Error>> {
+        let distance = super::check_word_against_dictionary(&String::from("worf"), &vec![String::from("dictionary"), String::from("with"), String::from("word")])?;
+        assert!(match distance {
+            Spelling::Incorrect(_, _, _) => true,
+            Spelling::Correct => false
+        });
+        Ok(())
     }
 }
