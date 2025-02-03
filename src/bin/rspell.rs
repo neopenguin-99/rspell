@@ -1,7 +1,8 @@
 #![feature(custom_test_frameworks)]
+#![allow(arithmetic_overflow)]
 
 use unicode_segmentation::UnicodeSegmentation;
-use std::io::Read;
+use std::{cmp::min, io::Read};
 use std::fs::File;
 use clap::{crate_authors, crate_version, value_parser, Arg, ArgMatches, Command};
 use rspell::rspell::word_reader::get_words_from_file;
@@ -43,6 +44,39 @@ fn compute_levenshtein_distance(s: &str, t: &str) -> u32 {
             return *vec.iter().min().unwrap() + 1;
         }
     }
+}
+
+fn compute_levenshtein_distance_iterative_full_matrix(s: &str, t: &str) -> u32 {
+    let mut levenshtein_distance_vec: Vec<Vec<u32>> = Default::default();
+
+    let i = 0;
+    while i < s.len() {
+        levenshtein_distance_vec[i][0] = i as u32;
+    }
+    let j = 0;
+    while j < t.len() {
+        levenshtein_distance_vec[0][j] = j as u32;
+    }
+
+    let j = 0;
+    while j < t.len() {
+        let i = 0;
+        let mut substitution_cost;
+        while i < s.len() {
+            if UnicodeSegmentation::graphemes(s, true).nth(0) == UnicodeSegmentation::graphemes(t, true).nth(0) {
+                substitution_cost = 0;
+            }
+            else {
+                substitution_cost = 1;
+            }
+            levenshtein_distance_vec[i][j] = min(
+                *levenshtein_distance_vec.get(i - 1).unwrap().get(j).unwrap() + 1, min(
+                    *levenshtein_distance_vec.get(i).unwrap().get(j - 1).unwrap() + 1,
+                    *levenshtein_distance_vec.get(i - 1).unwrap().get(j - 1).unwrap() + substitution_cost
+                ));
+        }
+    }
+    return levenshtein_distance_vec.get(s.len() - 1).unwrap().get(t.len() - 1).unwrap().clone();
 }
 
 enum Spelling {
@@ -97,6 +131,7 @@ mod tests {
     use crate::tests::get_words_from_file;
     use assert_fs::prelude::*;
     use mockall::{automock, mock, predicate::*};
+    use test_case::test_case;
 
     #[test]
     fn test_get_words_from_file() -> Result<(), Box<dyn std::error::Error>> {
@@ -120,10 +155,10 @@ mod tests {
 
     }
 
-    #[test_case("worr", "word", 1; "when distance is 1 from 1 substituted character")]
-    #[test_case("wirr", "word", 2; "when distance is 1 from 2 substituted characters")]
-    #[test_case("wor", "word", 1; "when distance is 1 from 1 deleted character")]
-    #[test_case("worda", "word", 1; "when distance is 1 from 1 added character")]
+    #[test_case("worr", "word", 1 ; "when distance is 1 from 1 substituted character")]
+    #[test_case("wirr", "word", 2 ; "when distance is 1 from 2 substituted characters")]
+    #[test_case("wor", "word", 1 ; "when distance is 1 from 1 deleted character")]
+    #[test_case("worda", "word", 1 ; "when distance is 1 from 1 added character")]
     fn compute_levenshtein_distance(incorrect_word: &str, closest_match: &str, expected_distance: u32) -> Result<(), Box<dyn std::error::Error>> {
         let distance = super::compute_levenshtein_distance(incorrect_word, closest_match);
         assert_eq!(distance, expected_distance);
