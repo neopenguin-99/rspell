@@ -49,18 +49,21 @@ fn compute_levenshtein_distance(s: &str, t: &str) -> u32 {
 fn compute_levenshtein_distance_iterative_full_matrix(s: &str, t: &str) -> u32 {
     let mut levenshtein_distance_vec: Vec<Vec<u32>> = Default::default();
 
-    let i = 0;
+    let mut i = 0;
     while i < s.len() {
-        levenshtein_distance_vec[i][0] = i as u32;
+        levenshtein_distance_vec.push(vec![i as u32]);
+        i = i + 1;
     }
-    let j = 0;
+    let mut j = 0;
     while j < t.len() {
-        levenshtein_distance_vec[0][j] = j as u32;
+        levenshtein_distance_vec[0].push(j as u32);
+        j = j + 1;
     }
 
-    let j = 0;
+    let mut j = 1;
+    println!("{:#?}", levenshtein_distance_vec);
     while j < t.len() {
-        let i = 0;
+        let mut i = 1;
         let mut substitution_cost;
         while i < s.len() {
             if UnicodeSegmentation::graphemes(s, true).nth(0) == UnicodeSegmentation::graphemes(t, true).nth(0) {
@@ -69,12 +72,16 @@ fn compute_levenshtein_distance_iterative_full_matrix(s: &str, t: &str) -> u32 {
             else {
                 substitution_cost = 1;
             }
-            levenshtein_distance_vec[i][j] = min(
-                *levenshtein_distance_vec.get(i - 1).unwrap().get(j).unwrap() + 1, min(
-                    *levenshtein_distance_vec.get(i).unwrap().get(j - 1).unwrap() + 1,
-                    *levenshtein_distance_vec.get(i - 1).unwrap().get(j - 1).unwrap() + substitution_cost
+            println!("for i is {i} and j is {j}");
+            levenshtein_distance_vec[i - 1][j - 1] = min(
+
+                *levenshtein_distance_vec.get(i - 1).unwrap().get(j).unwrap_or(&1) + 1, min(
+                    *levenshtein_distance_vec.get(i).unwrap().get(j - 1).unwrap_or(&1) + 1,
+                    *levenshtein_distance_vec.get(i - 1).unwrap().get(j - 1).unwrap_or(&1) + substitution_cost
                 ));
+            i = i + 1;
         }
+        j = j + 1;
     }
     return levenshtein_distance_vec.get(s.len() - 1).unwrap().get(t.len() - 1).unwrap().clone();
 }
