@@ -48,20 +48,34 @@ fn compute_levenshtein_distance(s: &str, t: &str) -> u32 {
 
 fn compute_levenshtein_distance_iterative_full_matrix(s: &str, t: &str) -> u32 {
     let mut levenshtein_distance_vec: Vec<Vec<u32>> = Default::default();
-
+    // populate vec with '0' values
     let mut i = 0;
+    while i < s.len() {
+        levenshtein_distance_vec.push(vec![]);
+        let mut j = 0;
+        while j < t.len() {
+            levenshtein_distance_vec.get_mut(i).unwrap().push(0);
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    let mut i = 1;
+    println!("{:#?}", levenshtein_distance_vec);
     while i < s.len() {
         levenshtein_distance_vec.push(vec![i as u32]);
         i = i + 1;
     }
-    let mut j = 0;
+    println!("{:#?}", levenshtein_distance_vec);
+    let mut j = 1;
     while j < t.len() {
         levenshtein_distance_vec[0].push(j as u32);
         j = j + 1;
     }
+    levenshtein_distance_vec[0].dedup();
+    println!("{:#?}", levenshtein_distance_vec);
 
     let mut j = 1;
-    println!("{:#?}", levenshtein_distance_vec);
     while j < t.len() {
         let mut i = 1;
         let mut substitution_cost;
@@ -73,16 +87,25 @@ fn compute_levenshtein_distance_iterative_full_matrix(s: &str, t: &str) -> u32 {
                 substitution_cost = 1;
             }
             println!("for i is {i} and j is {j}");
-            levenshtein_distance_vec[i - 1][j - 1] = min(
+            if j == 1 {
+                levenshtein_distance_vec.push(vec![]);
+            }
 
-                *levenshtein_distance_vec.get(i - 1).unwrap().get(j).unwrap_or(&1) + 1, min(
-                    *levenshtein_distance_vec.get(i).unwrap().get(j - 1).unwrap_or(&1) + 1,
-                    *levenshtein_distance_vec.get(i - 1).unwrap().get(j - 1).unwrap_or(&1) + substitution_cost
-                ));
+            let a = levenshtein_distance_vec.get(i - 1).unwrap().get(j).unwrap().clone(); //deletion
+            let b = levenshtein_distance_vec.get(i).unwrap().get(j - 1).unwrap().clone(); //insertion
+            let c = levenshtein_distance_vec.get(i - 1).unwrap().get(j - 1).unwrap().clone() + substitution_cost; //substitution
+            let current: &mut Vec<u32> = levenshtein_distance_vec.get_mut(i - 1).unwrap();
+            println!("before push: {:#?}", current);
+            current.push(min(
+                a, min(b, c)
+            ));
+            println!("after push: {:#?}", current);
+            // let a = levenshtein_distance_vec.push(current);
             i = i + 1;
         }
         j = j + 1;
     }
+    println!("{:#?}", levenshtein_distance_vec);
     return levenshtein_distance_vec.get(s.len() - 1).unwrap().get(t.len() - 1).unwrap().clone();
 }
 
@@ -95,7 +118,7 @@ fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Res
     let mut min_distance: u32 = u32::MAX;
     let closest_word: String = Default::default();
     for dict_entry in dictionary {
-        let distance = compute_levenshtein_distance(&word, &dict_entry); // todo use di so that we
+        let distance = compute_levenshtein_distance_iterative_full_matrix(&word, &dict_entry); // todo use di so that we
         // can inject this in for testing
         if distance < min_distance {
             min_distance = distance
@@ -167,7 +190,7 @@ mod tests {
     #[test_case("wor", "word", 1 ; "when distance is 1 from 1 deleted character")]
     #[test_case("worda", "word", 1 ; "when distance is 1 from 1 added character")]
     fn compute_levenshtein_distance(incorrect_word: &str, closest_match: &str, expected_distance: u32) -> Result<(), Box<dyn std::error::Error>> {
-        let distance = super::compute_levenshtein_distance(incorrect_word, closest_match);
+        let distance = super::compute_levenshtein_distance_iterative_full_matrix(incorrect_word, closest_match);
         assert_eq!(distance, expected_distance);
         Ok(())
     }
