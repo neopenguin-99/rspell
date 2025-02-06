@@ -1,9 +1,12 @@
 #![feature(custom_test_frameworks)]
+#![feature(test)]
 #![allow(arithmetic_overflow)]
 
 use unicode_segmentation::UnicodeSegmentation;
 use std::{cmp::min, io::Read};
 use std::fs::File;
+use distance::levenshtein;
+
 use clap::{crate_authors, crate_version, value_parser, Arg, ArgMatches, Command};
 use rspell::rspell::word_reader::get_words_from_file;
 
@@ -61,19 +64,19 @@ fn compute_levenshtein_distance_iterative_full_matrix(s: &str, t: &str) -> u32 {
     }
 
     let mut i = 1;
-    println!("{:#?}", levenshtein_distance_vec);
+    // println!("{:#?}", levenshtein_distance_vec);
     while i < s.len() {
         levenshtein_distance_vec.push(vec![i as u32]);
         i = i + 1;
     }
-    println!("{:#?}", levenshtein_distance_vec);
+    // println!("{:#?}", levenshtein_distance_vec);
     let mut j = 1;
     while j < t.len() {
         levenshtein_distance_vec[0].push(j as u32);
         j = j + 1;
     }
     levenshtein_distance_vec[0].dedup();
-    println!("{:#?}", levenshtein_distance_vec);
+    // println!("{:#?}", levenshtein_distance_vec);
 
     let mut j = 1;
     while j < t.len() {
@@ -95,17 +98,17 @@ fn compute_levenshtein_distance_iterative_full_matrix(s: &str, t: &str) -> u32 {
             let b = levenshtein_distance_vec.get(i).unwrap().get(j - 1).unwrap().clone(); //insertion
             let c = levenshtein_distance_vec.get(i - 1).unwrap().get(j - 1).unwrap().clone() + substitution_cost; //substitution
             let current: &mut Vec<u32> = levenshtein_distance_vec.get_mut(i - 1).unwrap();
-            println!("before push: {:#?}", current);
+            // println!("before push: {:#?}", current);
             current.push(min(
                 a, min(b, c)
             ));
-            println!("after push: {:#?}", current);
+            // println!("after push: {:#?}", current);
             // let a = levenshtein_distance_vec.push(current);
             i = i + 1;
         }
         j = j + 1;
     }
-    println!("{:#?}", levenshtein_distance_vec);
+    // println!("{:#?}", levenshtein_distance_vec);
     return levenshtein_distance_vec.get(s.len() - 1).unwrap().get(t.len() - 1).unwrap().clone();
 }
 
@@ -135,7 +138,7 @@ fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Res
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let files = parse_args()?;
-    let dictionary = get_words_from_file("training2.txt")?;
+    let dictionary = get_words_from_file("word.txt")?;
     for file in files {
         println!("For file {}:", file.to_string());
         let words = get_words_from_file(&file)?;
@@ -162,6 +165,8 @@ mod tests {
     use assert_fs::prelude::*;
     use mockall::{automock, mock, predicate::*};
     use test_case::test_case;
+    extern crate test;
+    use test::Bencher;
 
     #[test]
     fn test_get_words_from_file() -> Result<(), Box<dyn std::error::Error>> {
@@ -211,6 +216,30 @@ mod tests {
         assert!(match distance {
             Spelling::Incorrect(_, _, _) => true,
             Spelling::Correct => false
+        });
+        Ok(())
+    }
+
+    #[bench]
+    fn compute_levenshtein_distance_performance(b: &mut Bencher) -> Result<(), Box<dyn std::error::Error>> {
+        b.iter(|| {
+            _ = super::compute_levenshtein_distance("worr", "word");
+        });
+        Ok(())
+    }
+
+    #[bench]
+    fn compute_levenshtein_distance_iterative_full_matrix_performance(b: &mut Bencher) -> Result<(), Box<dyn std::error::Error>> {
+        b.iter(|| {
+            _ = super::compute_levenshtein_distance_iterative_full_matrix("worr", "word");
+        });
+        Ok(())
+    }
+
+    #[bench]
+    fn compute_levenshtein_distance_from_crate(b: &mut Bencher) -> Result<(), Box<dyn std::error::Error>> {
+        b.iter(|| {
+            _ = super::levenshtein("worr", "word");
         });
         Ok(())
     }
