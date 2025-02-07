@@ -114,15 +114,14 @@ fn compute_levenshtein_distance_iterative_full_matrix(s: &str, t: &str) -> u32 {
 
 enum Spelling {
     Correct,
-    Incorrect(String, String, u32)
+    Incorrect(String, String, usize)
 }
 
 fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Result<Spelling, Box<dyn std::error::Error>> {
-    let mut min_distance: u32 = u32::MAX;
+    let mut min_distance: usize = usize::MAX;
     let closest_word: String = Default::default();
     for dict_entry in dictionary {
-        let distance = compute_levenshtein_distance_iterative_full_matrix(&word, &dict_entry); // todo use di so that we
-        // can inject this in for testing
+        let distance = levenshtein(&word, &dict_entry); // todo use di so that we
         if distance < min_distance {
             min_distance = distance
         }
@@ -138,7 +137,7 @@ fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Res
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let files = parse_args()?;
-    let dictionary = get_words_from_file("word.txt")?;
+    let dictionary = get_words_from_file("training2.txt")?;
     for file in files {
         println!("For file {}:", file.to_string());
         let words = get_words_from_file(&file)?;
@@ -195,7 +194,7 @@ mod tests {
     #[test_case("wor", "word", 1 ; "when distance is 1 from 1 deleted character")]
     #[test_case("worda", "word", 1 ; "when distance is 1 from 1 added character")]
     fn compute_levenshtein_distance(incorrect_word: &str, closest_match: &str, expected_distance: u32) -> Result<(), Box<dyn std::error::Error>> {
-        let distance = super::compute_levenshtein_distance_iterative_full_matrix(incorrect_word, closest_match);
+        let distance = super::compute_levenshtein_distance(incorrect_word, closest_match);
         assert_eq!(distance, expected_distance);
         Ok(())
     }
