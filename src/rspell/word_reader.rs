@@ -1,11 +1,14 @@
 pub use self::word_reader::get_words_from_file;
+pub use self::word_reader::Node;
 pub mod word_reader {
+    use std::borrow::Borrow;
     use std::io::Read;
     use std::fs::File;
     use itertools::Itertools;
     use unicode_segmentation::UnicodeSegmentation;
     use std::rc::Rc;
     use std::cmp;
+    use std::cmp::Ordering;
 
     pub fn get_words_from_file(file_path: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let mut f = File::open(file_path)?;
@@ -20,40 +23,65 @@ pub mod word_reader {
         // we could implement this as a tree, with the depth of an element pertaining how many
         // characters a word has
         let words = get_words_from_file(file_path)?;
-        let mut root_node = Node::new(None);
-        let mut word_so_far;
+        let mut root_node = Node::new(String::new());
+        let mut word_so_far: &str;
         for word in words {
-            word_so_far = Box::new(String::new());
+            word_so_far = "";
             for r#char in word.chars() {
-                *word_so_far += stringify!(r#char.clone());
-                root_node.add_child(Node::new(Some(*word_so_far.clone())))
+                let word_to_add = format!("{}{}", word_so_far, r#char);
+                root_node.add_child(Node::new(word_to_add))
             }
         }
         return Ok(root_node);
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
     pub struct Node<T> {
-        data: Option<T>,
-        children: Vec<Node<T>>
+        pub data: T,
+        pub children: Vec<Node<T>>
     }
 
-    impl<T: PartialEq> Node<T> {
-        fn new(data: Option<T>) -> Node<T> {
+    impl<T: PartialEq + Clone> Node<T> {
+        fn new(data: T) -> Node<T> {
             Node { data, children: vec![] }
         }
 
         fn add_child(&mut self, child: Node<T>) {
-            let data = child.data.unwrap(); // todo fix
-            if self.children.iter().any(move |n| {
+            let data = child.data.clone();
+            if self.children.iter().all(move |n| {
                 match &n.data {
-                    Some(n) if *n == data => true,
-                    Some(_) => false,
-                    None => false
+                    n if *n == data => false,
+                    _ => true,
                 }
             }) {
-                // self.children.push(child);
+                self.children.push(child);
             }
         }
     }
+
+
+    fn get_substring(node: Node<String>, mut word_to_search: String) -> String {
+        let max_index = 0;
+        for child_node in &node.children {
+            traverse(&child_node, word_to_search);
+            for (i, r#char) in word_to_search.char_indices() {
+                if r#char == child_node.data.get(i..i+1).unwrap().chars().nth(0).unwrap() {
+                    word_to_search = String::from(get_substring(child_node.clone(), word_to_search.clone()););
+                }
+            }
+
+        }
+        String::new()
+    }
+
+    fn traverse(node: Node<String>, word_to_search: String, depth: u32) {
+        // for every child in node, check if word_to_search[depth] == node.data[depth]
+        for child_node in node.children { 
+            child_node.data.contains('a');
+            if child_node.data.get(depth..depth+1).unwrap() == node.data.(depth as u32) {
+                traverse(child_node, word_to_search, depth + 1)
+            }
+        }
+    }
+
 }

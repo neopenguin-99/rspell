@@ -2,6 +2,7 @@
 #![feature(test)]
 #![allow(arithmetic_overflow)]
 
+use rspell::rspell::word_reader::word_reader::get_words_from_file_as_tree;
 use unicode_segmentation::UnicodeSegmentation;
 use std::{cmp::min, io::Read};
 use std::fs::File;
@@ -9,6 +10,7 @@ use distance::levenshtein;
 
 use clap::{crate_authors, crate_version, value_parser, Arg, ArgMatches, Command};
 use rspell::rspell::word_reader::get_words_from_file;
+use rspell::rspell::word_reader::Node;
 
 /// Returns a vector of String that are the relative paths of the files passed as arguments.
 fn parse_args() -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -138,6 +140,7 @@ fn check_word_against_dictionary(word: &String, dictionary: &Vec<String>) -> Res
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let files = parse_args()?;
     let dictionary = get_words_from_file("training2.txt")?;
+    let dictionary = get_words_from_file_as_tree("training2.txt")?;
     for file in files {
         println!("For file {}:", file.to_string());
         let words = get_words_from_file(&file)?;
@@ -154,6 +157,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
+    Ok(())
+}
+
+fn traverse_and_retrieve_closest_word(root_node: Node<String>) -> Result<String, Box<dyn std::error::Error>> {
+    let a = root_node.children;
     Ok(())
 }
 
